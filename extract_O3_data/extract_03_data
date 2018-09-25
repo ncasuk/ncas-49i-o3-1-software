@@ -2,7 +2,6 @@
 
 import pandas as pd
 
-output = ("O3_minute_170514_191551.csv", "w")
 
 df = pd.read_csv("source/daily_minute_170514_191551")
 df1=pd.DataFrame()
