@@ -2,7 +2,10 @@
 
 import pandas as pd
 
+output = ("O3_minute_170514_191551.csv", "w")
+
 df = pd.read_csv("source/daily_minute_170514_191551")
 df1=pd.DataFrame()
 df1=df[['TheTime','ozone4_serial','ozone2_serial']]
 print(df1)
+df1.to_csv('O3_minute_170514_191551.csv', encoding='utf-8', index=False)
