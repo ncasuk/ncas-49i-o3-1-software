@@ -1,1 +1,6 @@
-#!/bin/bash
+#!/group_workspaces/jasmin2/ncas_radar/software/anaconda2/bin/python
+
+import pandas as pd
+
+df = pd.read_csv("source/daily_minute_170514_191551")
+
