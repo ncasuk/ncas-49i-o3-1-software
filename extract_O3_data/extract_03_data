@@ -3,4 +3,6 @@
 import pandas as pd
 
 df = pd.read_csv("source/daily_minute_170514_191551")
-
+df1=pd.DataFrame()
+df1=df[['TheTime','ozone4_serial','ozone2_serial']]
+print(df1)
