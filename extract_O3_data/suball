@@ -1,0 +1,7 @@
+for x in $(ls);do
+
+bsub -q lotus ./"$x"
+
+sleep 0.1
+done
+
