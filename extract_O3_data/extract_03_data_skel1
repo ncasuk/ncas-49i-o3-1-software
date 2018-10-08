@@ -1,9 +1,9 @@
 #!/group_workspaces/jasmin2/ncas_radar/software/anaconda2/bin/python
-
 import pandas as pd
 
 df = pd.read_csv("../source/input", error_bad_lines=False)
 exidfr=pd.DataFrame()
-df1=df[['TheTime','Ozone','ozone_2']]
+df1=df[['TheTime','ozone4_serial','ozone_4_ad','ozone2_serial','ozone_2_ad','temp']]
+#TheTime,Carbon_Monoxide_AD,ozone_4,ozone_2,Wind_Direction,Wind_Speed,temp,MFC2,MFC3,Perm_MFC1_gcfid,Perm_MFC2_gcms,ozone_1,air_humidity
 print(df1)
 df1.to_csv('../target/output', encoding='utf-8', index=False)
