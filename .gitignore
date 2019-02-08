@@ -8,3 +8,9 @@ tmp/nanoc/
 
 # Crash Log
 crash.log
+
+#vim swapfiles
+*.swp
+
+#netCDF output
+netcdf/
