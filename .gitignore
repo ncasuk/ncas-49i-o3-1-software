@@ -12,5 +12,9 @@ crash.log
 #vim swapfiles
 *.swp
 
+#Python cache
+__pycache__
+*.pyc
+
 #netCDF output
 netcdf/
