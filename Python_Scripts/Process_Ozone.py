@@ -134,7 +134,7 @@ def run_me(year = None):
     curr_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     conf_dir = os.path.join(curr_dir,"config")
     #parent_dir = str(pathlib.Path(curr_dir).parent)
-    data_dir = r"/gws/nopw/j04/ncas_obs/amf/raw_data/ncas-49i-o3-1"#os.path.join(parent_dir,"Input_data")
+    data_dir = r"/gws/nopw/j04/ncas_obs/amf/raw_data/ncas-49i-o3-1/data"#os.path.join(parent_dir,"Input_data")
     output_dir = r"/gws/nopw/j04/ncas_obs/amf/processing/ncas-49i-o3-1/output"#os.path.join(parent_dir,"Output")
     
     excluded_dates = read_conf_file(os.path.join(conf_dir,"remove_date_times.mww"))
