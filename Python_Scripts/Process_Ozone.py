@@ -9,6 +9,8 @@ import datetime
 import xlrd
 import calendar
 import time
+import sys
+
 
 def read_conf_file(fname):
     df = pd.read_csv(fname,delimiter = "\t")
@@ -31,12 +33,19 @@ def filter_flist(flist,year,bad_files):
     flist = [i for i in flist if ((int(i[-13:-7]) >= start_date) and (int(i[-13:-7]) <= end_date))]
     return flist
 
+def filter_flist_new(flist,year,bad_files):
+    flist = list(set(flist) - set(bad_files))
+    start_date = int(str(year-1)[2:] + "1229")
+    end_date = int(str(year+1)[2:] + "0102")
+    flist = [i for i in flist if ((int(os.path.basename(i).split("_")[2])>= start_date) and (int(os.path.basename(i).split("_")[2]) <= end_date))]
+    return flist
+
 def get_df_list(flist):
     df_list = []
     multi = True
     if multi:
         mypool = multiprocessing.Pool(10)
-        result = mypool.map_async(read_file,flist,chunksize = 1)   
+        result = mypool.map_async(read_file_new,flist,chunksize = 1)   
         mypool.close()
         previous_number = result._number_left
         while True:
@@ -49,12 +58,21 @@ def get_df_list(flist):
         df_list = result.get()       
     else:       
         for i in flist:
-            df_list.append(read_file(i))
+            print(i)
+            df_list.append(read_file_new(i))
     return df_list
         
 def read_file(fname):
     try:
         df = pd.read_csv(fname,index_col = 0,parse_dates = True,date_parser = get_date)
+    except Exception as e:
+        df = str(fname) + "\t" + str(e)
+    return df
+
+def read_file_new(fname):
+    try:
+        df = pd.read_csv(fname,index_col = "TheTime")
+        df.index = pd.to_datetime(df.index.astype(float),unit = "s")
     except Exception as e:
         df = str(fname) + "\t" + str(e)
     return df
@@ -76,16 +94,12 @@ def drop_dates(df,date_list):
     return df
 
 def correct_col_names(df,name_list):
-    name_list["End Date"] = name_list["Date"].shift(-1)
-    name_list = name_list.to_dict("records")
-    for i in name_list:
-        if pd.isnull(i["End Date"]):
-            ender = datetime.datetime.now()
-        else:
-            ender = i["End Date"]
+    name_list["End Date"] = pd.to_datetime(name_list["Date"].shift(-1).fillna(datetime.datetime.now()))
+    #name_list = name_list.to_dict("records")
+    for num,row in name_list.iterrows():
         try:
-            df.loc[i["Date"]:ender,"Primary Instrument"] = df.loc[i["Date"]:ender,i["Primary Instrument"]]
-            df.loc[i["Date"]:ender,"Secondary Instrument"] = df.loc[i["Date"]:ender,i["Secondary Instrument"]]
+            df.loc[row["Date"]:row["End Date"],"Primary Instrument"] = df.loc[row["Date"]:row["End Date"],row["Primary Instrument"]]
+            df.loc[row["Date"]:row["End Date"],"Secondary Instrument"] = df.loc[row["Date"]:row["End Date"],row["Secondary Instrument"]]
         except Exception as e:
             pass
     df = df.drop([i for i in df.columns.values if i not in ["Primary Instrument","Secondary Instrument"]],axis = 1)
@@ -95,11 +109,11 @@ def flag_dataframe(df):
     df["Primary Instrument Flags"] = 1
     df["Secondary Instrument Flags"] = 1
     df.loc[df["Secondary Instrument"]>80,"Secondary Instrument Flags"] = 3
-    df.loc[df["Secondary Instrument"]<10,"Secondary Instrument Flags"] = 2
+    df.loc[df["Secondary Instrument"]<5,"Secondary Instrument Flags"] = 4
     df.loc[df["Secondary Instrument"]<1,"Secondary Instrument Flags"] = 5
-    df.loc[(abs(((df["Primary Instrument"]-df["Secondary Instrument"])/df["Primary Instrument"])) > 0.15) & (df["Secondary Instrument Flags"] ==0),"Primary Instrument Flags"] = 2
+    df.loc[(abs(((df["Primary Instrument"].rolling("10T").mean()-df["Secondary Instrument"].rolling("10T").mean())/df["Primary Instrument"].rolling("10T").mean())) > 0.05) & (df["Secondary Instrument Flags"] == 1),"Primary Instrument Flags"] = 2
     df.loc[df["Primary Instrument"]>80,"Primary Instrument Flags"] = 3
-    df.loc[df["Primary Instrument"]<10,"Primary Instrument Flags"] = 2
+    df.loc[df["Primary Instrument"]<5,"Primary Instrument Flags"] = 4
     df.loc[df["Primary Instrument"]<1,"Primary Instrument Flags"] = 5
     #only one instrument not working use flag 4
     return df
@@ -114,7 +128,7 @@ def create_folder(path_parts):
     os.makedirs(os.path.join(*list(map(str,path_parts))),exist_ok = True)
 
 def output_month(df,output_dir,year,month):
-    df[((df.index.year == year) & (df.index.month == month))].to_csv(os.path.join(*list(map(str,[output_dir,year,calendar.month_name[month],calendar.month_name[month]]))) + "_" + str(year) + "_Ozone.csv")
+    df[((df.index.year == year) & (df.index.month == month))].to_csv(os.path.join(*list(map(str,[output_dir,year,calendar.month_name[month],calendar.month_name[month]]))) + "_" + str(year) + "_Ozone_rolling_diff.csv")
 
 def output_errors(fpath,errors):
     try:
@@ -134,18 +148,19 @@ def run_me(year = None):
     curr_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     conf_dir = os.path.join(curr_dir,"config")
     #parent_dir = str(pathlib.Path(curr_dir).parent)
-    data_dir = r"/gws/nopw/j04/ncas_obs/amf/raw_data/ncas-49i-o3-1/data"#os.path.join(parent_dir,"Input_data")
-    output_dir = r"/gws/nopw/j04/ncas_obs/amf/processing/ncas-49i-o3-1/output"#os.path.join(parent_dir,"Output")
+    #data_dir = r"X:\pw\j07\ncas_obs_vol1\cvao\raw_data\ncas-49i-o3-1\data"
+    data_dir = r"/gws/pw/j07/ncas_obs_vol1/cvao/raw_data/ncas-49i-o3-1/data"
+    output_dir = r"/gws/pw/j07/ncas_obs_vol1/cvao/processing/ncas-49i-o3-1/output"#os.path.join(parent_dir,"Output")
     
     excluded_dates = read_conf_file(os.path.join(conf_dir,"remove_date_times.mww"))
     instrument_dates = read_conf_file(os.path.join(conf_dir,"instrument_names.mww"))
     bad_files = read_conf_file_list(os.path.join(conf_dir,"bad_files.mww"),"\t",0)
-    
-    flist = glob.glob(data_dir + os.path.sep + "*daily_minute*")
-    flist = filter_flist(flist,year,bad_files)
+    flist = glob.glob(data_dir + os.path.sep + "**" + os.path.sep + "all_o3*",recursive = True)
+    flist = filter_flist_new(flist,year,bad_files)
     df_list = get_df_list(flist)
     error_list,df_list = split_df_list(df_list)
     giant_df = pd.concat(df_list,sort = True).sort_index()
+    giant_df = giant_df[giant_df.index.notnull()]
     giant_df = drop_dates(giant_df,excluded_dates)
     giant_df = correct_col_names(giant_df,instrument_dates)
     giant_df = flag_dataframe(giant_df)
